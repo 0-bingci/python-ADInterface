@@ -1,0 +1,138 @@
+from ldap3 import Server, Connection, ALL, NTLM, MODIFY_REPLACE,ALL_ATTRIBUTES,SUBTREE
+from flask import Flask, request
+from flask_cors import CORS
+import json
+
+
+# 配置LDAP服务器信息
+ldap_server = 'ldaps://server.gtcist.cn:636'
+domain = 'gtcist.cn'
+username = f'{domain}\\operation'
+password = 'Dgut207207207!'
+user_dn = 'ou=普通用户,ou=207,dc=gtcist,dc=cn'  # 用户将被创建到此OU下
+use_ssl=True
+# 创建LDAP连接
+server = Server(ldap_server, get_info=ALL)
+conn = Connection(server, user=username, password=password, authentication=NTLM)
+# 连接到LDAP服务器
+if not conn.bind():
+    print('连接失败:', conn.last_error)
+else:
+    print('连接成功!')
+
+app = Flask(__name__)
+CORS(app)
+
+# 创建用户
+# 请求方式 post
+# 请求参数 'cn'姓名,'department'学院,'description'学号,'physicalDeliveryOfficeName'班级,'sAMAccountName'账号  password  'userPrincipalName'
+@app.route('/create',methods=['POST'])
+def create():
+    cn=request.form['cn']
+    parts = cn.split()
+    sn = parts[0]
+    givenName=' '.join(parts[1:])
+    department=request.form['department']
+    description=request.form['description']
+    physicalDeliveryOfficeName=request.form['physicalDeliveryOfficeName']
+    sAMAccountName=request.form['sAMAccountName']
+    userPrincipalName=sAMAccountName+'@gtcist.cn'
+    new_user_dn = 'CN=mzi,{}'.format(user_dn)  # 用户的DN
+    password = request.form['password']  # 用户初始密码
+    user_attributes = {
+    'physicalDeliveryOfficeName':physicalDeliveryOfficeName,
+    'department':department,
+    'description':description,
+    'objectClass': ['top', 'person', 'organizationalPerson', 'user'],
+    'sAMAccountName': sAMAccountName,
+    'userPrincipalName': userPrincipalName,
+    'givenName':givenName,
+    'sn': sn,
+    'displayName': cn,
+}
+    # 添加新用户到AD
+    conn.add(new_user_dn, attributes=user_attributes)
+    if conn.result['description'] == 'success':
+        print('用户创建成功')
+    # 设置密码
+        conn.extend.microsoft.modify_password(new_user_dn, password)
+
+    # 启用用户账户
+        conn.modify(new_user_dn, {'userAccountControl': [(MODIFY_REPLACE, [514])]})
+        print('用户密码设置成功且账户已启用')
+    else:
+        print('用户创建失败:', conn.result['description'])
+    user_bn = f"CN={cn},ou=普通用户,ou=207,dc=gtcist,dc=cn"
+    admin_dn = "CN=207,OU=普通用户,OU=207,DC=gtcist,DC=cn"
+    conn.extend.microsoft.add_members_to_groups(user_bn, admin_dn)
+
+
+
+# 启用用户
+# 请求方式 post
+# 请求参数 user_dn cn
+@app.route('/start',methods=['POST'])
+def start():
+    cn=request.form['cn']
+    user_dn=request.form['user_dn']
+    user_bn = f"CN={cn},ou=普通用户,ou=207,dc=gtcist,dc=cn"
+    admin_dn = "CN=207,OU=普通用户,OU=207,DC=gtcist,DC=cn"
+    conn.extend.microsoft.add_members_to_groups(user_bn, admin_dn)
+    conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [66080])]})
+    return "启用成功"
+
+
+
+# 查询用户
+# 请求方式 post
+# 请求参数 sAMAccountName
+@app.route('/search',methods=['GET','POST'])
+def search_user_by_account_name():
+  sAMAccountName=request.form['sAMAccountName']
+  conn.search(
+    search_base="ou=普通用户,ou=207,dc=gtcist,dc=cn",  # 坐标
+    search_filter=f"(&(objectclass=user)(sAMAccountName={sAMAccountName}))",  # 查询条件
+    attributes=ALL_ATTRIBUTES, # 返回的属性
+  )  # attributes 限制查询出来的属性包括
+  res = conn.response_to_json()  # 将查询结果转换为json格式
+  res = json.loads(res)["entries"]
+  return res
+
+
+# 删除用户
+# 请求方式 post
+# 请求参数 user_dn
+@app.route('/delete',methods=['POST'])
+def delete():
+    user_dn=request.form['user_dn']
+    conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [514])],'description':'已禁用'})
+    return '禁用成功'
+
+
+# 修改密码 
+# 请求方式 post
+# 请求参数 newpassword,user_dn
+@app.route('/remake',methods=['POST'])
+def remakePassword():
+    user_dn=request.form['user_dn']
+    newpassword=request.form['newpassword']
+    conn.extend.microsoft.modify_password(user_dn, newpassword)
+    return "修改成功"
+
+
+# 获取所有用户信息
+@app.route('/all',methods=['GET'])
+def getAll():
+    search_base = 'ou=普通用户,ou=207,dc=gtcist,dc=cn'
+    search_filter = f'(objectClass=organizationalPerson)'
+    conn.search(search_base, search_filter, SUBTREE, attributes=['cn','department','description','physicalDeliveryOfficeName','userPrincipalName','sAMAccountName'])
+    res = conn.response_to_json()  # 将查询结果转换为json格式
+    res = json.loads(res)["entries"]
+    return res
+
+
+if __name__ == '__main__':
+    app.run(port=5000, debug=True)
+
+
+
