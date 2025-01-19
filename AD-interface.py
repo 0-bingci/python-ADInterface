@@ -28,17 +28,18 @@ CORS(app)
 # 请求参数 'cn'姓名,'department'学院,'description'学号,'physicalDeliveryOfficeName'班级,'sAMAccountName'账号  password  'userPrincipalName'
 @app.route('/create',methods=['POST'])
 def create():
-    cn=request.form['cn']
+    cn=request.json['cn']
     parts = cn.split()
     sn = parts[0]
-    givenName=' '.join(parts[1:])
-    department=request.form['department']
-    description=request.form['description']
-    physicalDeliveryOfficeName=request.form['physicalDeliveryOfficeName']
-    sAMAccountName=request.form['sAMAccountName']
+    # givenName=' '.join(parts[1:])
+    givenName='占位'
+    department=request.json['department']
+    description=request.json['description']
+    physicalDeliveryOfficeName=request.json['physicalDeliveryOfficeName']
+    sAMAccountName=request.json['sAMAccountName']
     userPrincipalName=sAMAccountName+'@gtcist.cn'
-    new_user_dn = 'CN=mzi,{}'.format(user_dn)  # 用户的DN
-    password = request.form['password']  # 用户初始密码
+    new_user_dn = f"CN={cn},ou=普通用户,ou=207,dc=gtcist,dc=cn"  # 用户的DN
+    password = request.json['password']  # 用户初始密码
     user_attributes = {
     'physicalDeliveryOfficeName':physicalDeliveryOfficeName,
     'department':department,
@@ -50,6 +51,7 @@ def create():
     'sn': sn,
     'displayName': cn,
 }
+    print(new_user_dn)
     # 添加新用户到AD
     conn.add(new_user_dn, attributes=user_attributes)
     if conn.result['description'] == 'success':
@@ -59,26 +61,24 @@ def create():
 
     # 启用用户账户
         conn.modify(new_user_dn, {'userAccountControl': [(MODIFY_REPLACE, [514])]})
-        print('用户密码设置成功且账户已启用')
+        print('用户密码设置成功且账户已禁用')
     else:
         print('用户创建失败:', conn.result['description'])
-    user_bn = f"CN={cn},ou=普通用户,ou=207,dc=gtcist,dc=cn"
-    admin_dn = "CN=207,OU=普通用户,OU=207,DC=gtcist,DC=cn"
-    conn.extend.microsoft.add_members_to_groups(user_bn, admin_dn)
+    return "创建成功"
 
 
 
 # 启用用户
 # 请求方式 post
-# 请求参数 user_dn cn
+# 请求参数 cn
 @app.route('/start',methods=['POST'])
 def start():
     cn=request.form['cn']
-    user_dn=request.form['user_dn']
+    # user_dn=request.form['user_dn']
     user_bn = f"CN={cn},ou=普通用户,ou=207,dc=gtcist,dc=cn"
     admin_dn = "CN=207,OU=普通用户,OU=207,DC=gtcist,DC=cn"
     conn.extend.microsoft.add_members_to_groups(user_bn, admin_dn)
-    conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [66080])]})
+    conn.modify(user_bn, {'userAccountControl': [(MODIFY_REPLACE, [66080])]})
     return "启用成功"
 
 
@@ -101,27 +101,30 @@ def search_user_by_account_name():
 
 # 删除用户
 # 请求方式 post
-# 请求参数 user_dn
+# 请求参数 cn
 @app.route('/delete',methods=['POST'])
 def delete():
-    user_dn=request.form['user_dn']
-    conn.modify(user_dn, {'userAccountControl': [(MODIFY_REPLACE, [514])],'description':'已禁用'})
+    cn=request.form['cn']
+    user_bn = f"CN={cn},ou=普通用户,ou=207,dc=gtcist,dc=cn"
+    # user_dn="cn="+cn+",ou=普通用户,ou=207,dc=gtcist,dc=cn"
+    conn.modify(user_bn, {'userAccountControl': [(MODIFY_REPLACE, [514])]})
     return '禁用成功'
 
 
 # 修改密码 
 # 请求方式 post
-# 请求参数 newpassword,user_dn
+# 请求参数 newpassword,cn
 @app.route('/remake',methods=['POST'])
 def remakePassword():
-    user_dn=request.form['user_dn']
-    newpassword=request.form['newpassword']
+    cn=request.json['cn']
+    user_dn="cn="+cn+",ou=普通用户,ou=207,dc=gtcist,dc=cn"
+    newpassword=request.json['newpassword']
     conn.extend.microsoft.modify_password(user_dn, newpassword)
     return "修改成功"
 
 
 # 获取所有用户信息
-@app.route('/all',methods=['GET'])
+@app.route('/main',methods=['GET'])
 def getAll():
     search_base = 'ou=普通用户,ou=207,dc=gtcist,dc=cn'
     search_filter = f'(objectClass=organizationalPerson)'

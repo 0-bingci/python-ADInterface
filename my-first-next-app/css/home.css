@@ -1,0 +1,77 @@
+.big{
+    display: flex;
+}
+
+
+.right{
+    background-color:rgb(218, 218, 216);
+    width: 100%;
+
+}
+.header{
+    margin: 5px 0px;
+    text-align: left;
+    line-height: 40px;
+    padding-left: 5px;
+    color: rgb(102, 103, 102);
+    background-color: white;
+    height: 40px;
+}
+.content{
+    margin: 10px;
+    font-size: 50px;
+    text-align: center;
+    line-height: 400px;
+    height: 400px;
+    background-color: white;
+    color:rgb(102, 103, 102) ;
+}
+.operation{
+    background-color: white;
+    height: 80px;
+    text-align: left;
+    line-height: 80px;
+    padding-left: 20px;
+    color:rgb(102, 103, 102) ;
+}
+.operation button{
+    height: 50px;
+    width: 140px;
+    margin: 10px 10px;
+    border: 1px solid black;
+    text-align: center;
+    line-height: 50px;
+}
+.exhibit{
+    /* height: 600px; */
+    background-color: white;
+    margin: 10px;
+    color:rgb(102, 103, 102) ;
+}
+.exhibit .box{
+    width: 17%;
+    /* background-color: red; */
+    padding: 10px;
+    /* font-size: 30px; */
+    text-align: center;
+    border-bottom:1px solid rgb(173, 173, 173);
+}
+
+.div{
+    /* border-bottom:1px solid rgb(173, 173, 173); */
+    width: 17%;
+    display: flex;
+    margin: 10px;
+    height: 50px;
+    font-size: 11px;
+    /* text-align: center; */
+    line-height: 10px;
+    /* flex-wrap: nowrap;
+    /* justify-content: end; */
+    /* align-items:normal ; */ 
+}
+.box button{
+    height: 70px;
+    width: 20px;
+    border: 1px solid black;
+}
